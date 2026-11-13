@@ -26,35 +26,73 @@ glimpse(college_grad_df)
 # Exercise 1: Exploratory Data Analysis
 
 ```{r}
-#your code here
+college_grad_df %>% 
+  ggplot(mapping=aes(x=median)) + 
+  geom_histogram(binwidth = 2500) 
+college_grad_df %>%
+  group_by(major_category) %>%
+  mutate(
+    avg_median = mean(median)
+  ) %>%
+  select(major_category,avg_median) %>%
+  unique() %>%
+  arrange(desc(avg_median))
 ```
 
-*Your explanation*
-
+Histogram shows positive skew with sharp peak between 30000 and 40000.
+Engineering majors have highest average median earnings
 
 # Exercise 2: Exploring relationship
 
 ```{r}
-#your code here
+#Explanatory: sharewomen, response: median
+college_grad_df %>%
+  drop_na() %>%
+  ggplot(
+    mapping = aes(x = sharewomen, y = median)
+  ) + 
+  geom_point() +
+  geom_smooth(method = "lm",se=FALSE)
 ```
 
-*Your explanation*
+Negative correlation observed between share of women and median earnings - correlation is not very strong as points are quite spread out from regression line
 
 # Exercise 3: Fit and interpret a numerical predictor
 
 ```{r}
-#your code here
+share_fit <- linear_reg() %>%
+  set_engine("lm") %>%
+  fit(median ~ sharewomen,data=college_grad_df)
+share_fit
+augment(share_fit$fit) %>% 
+  ggplot(
+  mapping = aes(x=.fitted,y=.resid)
+) +
+  geom_point() +
+  geom_hline(yintercept = 0)
 ```
 
-*Your explanation*
+y = 56093 - 30670x
+A unit increase in the share of women in a major yields an expected average decrease of 30670 in median earnings. A major with no women is predicted to have median earnings of 56093.
+Residuals plot is fairly evenly spread out around 0 without any notable patterns - model is fairly suitable
 
 # Exercise 4: Consider a categorical variable instead 
 
 ```{r}
-#your code here
-```
+college_grad_engineering <- college_grad_df %>%
+  mutate(
+    engineering = case_when(
+      major_category == "Engineering" ~ "Engineering",
+      TRUE ~ "Other"
+    )
+  )
+      linear_reg() %>%
+      set_engine("lm") %>%
+      fit(median ~ engineering,data = college_grad_engineering)
 
-*Your explanation*
+```
+Intercept: Engineering majors have a predicted median earnings of 57383
+Slope: Having a major outside of engineering leads to an expected average decrease of 20702 to median earnings
 
 ---
 
@@ -70,96 +108,122 @@ evals<-read.csv("data/evals.csv", row.names=1)
 1.  Visualize the distribution of `score` in the dataframe `evals`.
 
 ```{r viz-score}
-# add code here
+evals %>%
+  ggplot(
+    mapping = aes(x=score)
+  ) +
+  geom_histogram(binwidth=0.1)
 ```
 
-*Add your other details and narratives here.*
+Distribution negatively skewed - unsurprising as most students are taking a course of their own choice and are thus likely to have a positive bias towards the course
 
 2.  Visualize and describe the relationship between `score` and `bty_avg` using `geom_point()` to represent the data. 
 
 ```{r scatterplot}
-# add code here
+evals %>%
+  ggplot(
+    mapping = aes(x=bty_avg,y=score)
+  ) +
+  geom_point() +
+  geom_jitter()
 ```
 
-*Add your narrative and other details here.*
+geom_jitter() displaces points by a small random value on both axes - original plot was misleading as overplotting of many points was hidden
 
 # Exercise 2: Simple Linear regression with a numerical predictor
 
 1. Fit a linear model called `score_bty_fit` to predict average professor evaluation `score` from average beauty rating (`bty_avg`). Print the regression output using `tidy()`.
 
-```{r fit-score_bty_fit, eval = FALSE}
-# remove eval = FALSE from the code chunk options after filling in the blanks
+```{r fit-score_bty_fit}
 score_bty_fit <- linear_reg() %>%
   set_engine("lm") %>%
-  fit(___ ~ ___, data = ___)
+  fit(score ~ bty_avg, data = evals)
 ```
 
-```{r tidy-score_bty_fit, eval = FALSE}
-# remove eval = FALSE from the code chunk options after filling in the blanks
-tidy(___)
+```{r tidy-score_bty_fit}
+tidy(score_bty_fit)
 ```
 
-*Add your linear model here. Don't worry too much about notation, you can use things like score-hat.*
+y = 3.88034 + 0.06664x
 
 2. Plot the data again using `geom_jitter()`, and add the regression line.
 
-```{r viz-score_bty_fit,eval=FALSE}
-# add your plot here. Hint, you can add the regression line using geom_smooth()
+```{r viz-score_bty_fit}
+evals %>%
+  ggplot(
+    mapping = aes(x=bty_avg,y=score)
+  ) +
+  geom_point() +
+  geom_jitter() +
+  geom_smooth(method="lm",se=FALSE)
 ```
 
 3. Interpret the slope of the linear model in context of the data.
 
-*Add your interpretation here*
+Each unit increase in average beauty score leads to an expected average increase of 0.06664 in course score
 
 4. Interpret the intercept of the linear model in context of the data. Comment on whether or not the intercept makes sense in this context.
 
-*Add your interpretation here*
+Courses taught by 0/10 chopped munters have a predicted score of 3.88034 - interpretation makes sense as a beauty rating of 0 is possible but just really harsh
 
 5. Determine the $R^2$ of the model and interpret it in the context of the data.
 
-```{r R2, eval = FALSE}
-# remove eval = FALSE from the code chunk options after filling in the blanks
-glance(___)$___
+```{r R2}
+glance(score_bty_fit)$r.squared
 ```
 
-*Add your interpretation here*
+Variability of data points is not accounted for particularly well by the model
 
 6. Make a plot of residuals vs. predicted values for the model above.
 
-```{r viz-score_bty_fit-diagnostic, eval = FALSE}
-# remove eval = FALSE from the code chunk options after filling in the blanks
+```{r viz-score_bty_fit-diagnostic}
 score_bty_aug <- augment(score_bty_fit$fit)
 
-ggplot(___) + ...
+ggplot(
+  score_bty_aug,
+  mapping = aes(x=.fitted,y=.resid)
+) + 
+  geom_point() + 
+  geom_jitter() +
+  geom_hline(yintercept = 0)
 ```
+Model fairly suitable as distribution of residuals shows no discernible pattern and is fairly even around y=0
 
 # Exercise 3: Simple Linear regression with a categorical predictor
 
 0. Look at the variable rank, and determine the frequency of each category level.
 
 ```{r}
-# ... 
+evals %>% count(rank)
 ```
 
 1. Fit a new linear model called `score_rank_fit` to predict average professor evaluation `score` based on `rank` of the professor.
 
 ```{r fit-score_rank_fit}
 # fit model
-
+score_rank_fit <- linear_reg() %>%
+  set_engine("lm") %>%
+  fit(score ~ rank,data=evals)
 # tidy model output
+tidy(score_rank_fit)
 ```
 
-*Add your narrative here.*
-
-2. Fit a new linear model called `score_gender_fit` to predict average professor evaluation `score` based on `gender` of the professor. 
+Intercept: Professors of rank 'teaching' have a predicted score of 4.28431
+Slope(s): Professors of rank 'tenure track' have an expected average decrease of 0.012968 
+in score compared to those of rank 'teaching'
+Professors of rank 'tenured' have an expected average decrease of 0.014518 in score compared to those of rank 'teaching'.
+2. Fit a new linear model called `score_gender_fit` to predict average professor evaluation `score` based on `gender` of the professor 
 
 ```{r fit-score_gender_fit}
 # fit model
-
+score_gender_fit <- linear_reg() %>%
+  set_engine("lm") %>%
+  fit(score ~ gender,data=evals)
 # tidy model output
+tidy(score_gender_fit)
 ```
 
-```{r score_gender_intercept, eval=FALSE}
+```{r score_gender_intercept}
 # remove eval = FALSE from the code chunk options
 score_gender_intercept <- tidy(score_gender_fit) %>% 
   filter(term == "(Intercept)") %>%
@@ -167,7 +231,7 @@ score_gender_intercept <- tidy(score_gender_fit) %>%
   pull()
 ```
 
-```{r score_gender_slope, eval=FALSE}
+```{r score_gender_slope}
 # remove eval = FALSE from the code chunk options
 score_gender_slope <- tidy(score_gender_fit) %>% 
   filter(term == "gendermale") %>%
@@ -175,7 +239,7 @@ score_gender_slope <- tidy(score_gender_fit) %>%
   pull()
 ```
 
-*Add your narrative here. Use in-line code!*
+Female professors have a predicted score of `r round(score_gender_intercept,6) and male professors have an expected average increase in score by `r round(score_gender_slope,6)`
 
 # Exercise 4: Multiple linear regression
 
@@ -183,11 +247,15 @@ score_gender_slope <- tidy(score_gender_fit) %>%
 
 ```{r fit-score_bty_gender_fit}
 # fit model
-
+score_bty_gender_fit <- linear_reg() %>%
+  set_engine("lm") %>%
+  fit(score ~ bty_avg + gender, data=evals)
 # tidy model output
+tidy(score_bty_gender_fit)
 ```
-
-*Add your narrative here.*
+Intercept: Score for a female 0/10 chopped munter is predicted as 3.74734 
+Slope(s): All else held constant, each unit increase in average beauty score leads to an expected average increase in score of 0.07416 
+All else held constant, male professors have an expected average 0.17239 higher score than female professors
 
 ```{r eval = FALSE}
 ggplot(___) + ...
